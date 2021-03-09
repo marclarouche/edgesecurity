@@ -1,0 +1,597 @@
+
+###############################################################################################################
+##   Windows 10 Security Edge Implementation Guide #
+##   Use this script to implement the Edge security recommendations from NIST  #
+##   Make sure to run a backup of the registry first prior to running this security script.
+##   Authored by ValliantConsulting. Feb 6th 2021 : ## Edge security fixes
+################################################################################################################
+# Win 10 Valliant Security Tool
+#
+# Script + Menu(GUI) By
+#  Author: ZMAN
+# Website: https://GitHub.com/Valliant/VSTHomeSecurity
+# 
+#  Valliant Home Security Tool 
+#  Author: Marc/Rizwan
+# Website: http://www.ValliantConsulting.com/
+#
+# $Script_Version = '1.0.0'
+# $Script_Date = 'February-28-2021'
+# $Release_Type = 'Stable'
+##########
+
+
+# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+# !!                                         !!
+# !!                 CAUTION                 !!
+# !!       DO NOT EDIT PAST THIS POINT       !!
+# !!                                         !!
+# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+<#------------------------------------------------------------------------------#>
+<#------------------------------------------------------------------------------#>
+# $Copyright = ' Copyright (c) 2021 Zero Rights Reserved                                
+#          - Security Configuration by Marc/Rizwan     
+#                                                                        
+#------------------------------------------------------------------------
+                                                                        
+ # OpenSource + an added Condition                             
+                                                                        
+ # Copyright (c) 2021 ZMAN                                     
+ #         - Valliant Security Tool Script                                  
+                                                                        
+ # Permission is hereby granted, free of charge, to any person obtaining  
+ # a copy of this software and associated documentation files (the        
+ #"Software"), to deal in the Software without restriction, including    
+ # without limitation the rights to use, copy, modify, merge, publish,    
+ # distribute, sublicense, and/or sell copies of the Software, and to     
+ # permit persons to whom the Software is furnished to do so, subject to  
+ # the following conditions:                                              
+                                                                        
+ # The above copyright notice(s), this permission notice and ANY original 
+ # donation link shall be included in all copies or substantial portions  
+ # of the Software.                                                       
+                                                                        
+ # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY  
+ # KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE 
+ # WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR    
+ # PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS 
+ # OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR   
+ # OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR 
+ # OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE  
+ # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.      
+###############################################################################################################################################################
+## Set variables for log files.
+
+$date = get-date -Format MM-dd-y
+$server = $(Get-WmiObject Win32_Computersystem).name
+$logpath = "C:\Program Files\VST\"
+$Configlog = $logpath+$server+"_Edge_configuration_$date.txt"
+$line ="############################################################################################################"
+
+###############################################################################################################################################################
+# Self-elevate if not already elevated.
+
+if (([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator"))
+    {
+    "Running elevated; good."
+    ""
+    }
+else {
+    "Not running as elevated. Starting elevated shell."
+    Start-Process powershell -WorkingDirectory $PSScriptRoot -Verb runAs -ArgumentList "-noprofile -noexit -file $PSCommandPath"
+    return "Done. This one will now exit."
+    ""
+    }
+
+#############################################################################################################################################################
+# Check and make a new directory in C:\Program Files\VST\ if needed
+
+$path = "C:\Program Files\VST"
+if(!(test-path $path))
+{
+	new-item -itemType Directory -Force -Path $path
+}
+
+#############################################################################################################################################################
+# Functions to checkpath
+#############################################################################################################################################################
+
+Function checkPathDWORD{
+Param ($registryPath, $Name, $Value)
+IF(!(Test-Path $registryPath))
+  {
+      New-Item -Path $registryPath -Force | Out-Null
+      New-ItemProperty -Path $registryPath -Name $name -Value $value `
+      -PropertyType DWORD -Force | Out-Null}
+
+ ELSE {
+     New-ItemProperty -Path $registryPath -Name $name -Value $value `
+     -PropertyType DWORD -Force | Out-Null}
+}
+
+#############################################################################################################################################################
+Function checkPathSTRING{
+Param ($registryPath, $Name, $Value)
+IF(!(Test-Path $registryPath))
+  {
+      New-Item -Path $registryPath -Force | Out-Null
+      New-ItemProperty -Path $registryPath -Name $name -Value $value `
+      -PropertyType STRING -Force | Out-Null}
+
+ ELSE {
+     New-ItemProperty -Path $registryPath -Name $name -Value $value `
+     -PropertyType STRING -Force | Out-Null}
+}
+
+###############################################################################################################################################################
+## User control of proxy settings must be disabled.
+## Vul ID: EDGE-00-000001 CAT II
+
+checkPathSTRING -registryPath ‘HKLM:SOFTWARE\Policies\Microsoft\Edge’ -Name ‘ProxyMode’ -Value 'auto_detect'
+
+Get-ItemProperty -Path 'HKLM:SOFTWARE\Policies\Microsoft\Edge' | out-file $Configlog -Append
+
+Add-Content $Configlog "Vul ID: EDGE-00-000001 CAT II, ProxyMode reg key must = auto_detect. $line"
+
+###############################################################################################################################################################
+## Bypassing of Microsoft Defender SmartScreen warnings about downloads must be disabled.
+## Vul ID: EDGE-00-000002 CAT II
+
+checkPathDWORD -registryPath ‘HKLM:SOFTWARE\Policies\Microsoft\Edge’ -Name ‘PreventSmartScreenPromptOverride’ -Value "1"
+
+Get-ItemProperty -Path 'HKLM:SOFTWARE\Policies\Microsoft\Edge' | out-file $Configlog -Append
+
+Add-Content $Configlog "Vul ID: EDGE-00-000002 CAT II, PreventSmartScreenPromptOverride reg key must = 1. $line"
+
+###############################################################################################################################################################
+## Bypassing Microsoft Defender SmartScreen prompts for sites must be disabled.
+## Vul ID: EDGE-00-000003 CAT II
+
+checkPathDWORD -registryPath ‘HKLM:SOFTWARE\Policies\Microsoft\Edge’ -Name ‘PreventSmartScreenPromptOverrideForFiles’ -Value "1"
+
+Get-ItemProperty -Path 'HKLM:SOFTWARE\Policies\Microsoft\Edge' | out-file $Configlog -Append
+
+Add-Content $Configlog "Vul ID: EDGE-00-000003 CAT II, PreventSmartScreenPromptOverrideForFiles reg key must = 1. $line"
+
+###############################################################################################################################################################
+## The list of domains for which Microsoft Defender SmartScreen will not trigger warnings must be whitelisted if utilized.
+## Vul ID: EDGE-00-000004 CAT III
+
+checkPathSTRING -registryPath ‘HKLM:SOFTWARE\Policies\Microsoft\EdgeSmartScreenAllowListDomains’ -Name ‘1’ -Value "mydomain.com"
+
+Get-ItemProperty -Path 'HKLM:SOFTWARE\Policies\Microsoft\Edge' | out-file $Configlog -Append
+
+Add-Content $Configlog "Vul ID: EDGE-00-000004 CAT III, EdgeSmartScreenAllowListDomains reg key 1 & 2 = defined URLs. $line"
+
+checkPath -registryPath ‘HKLM:SOFTWARE\Policies\Microsoft\EdgeSmartScreenAllowListDomains’ -Name ‘2’ -Value "myagency.mil"
+
+Get-ItemProperty -Path 'HKLM:SOFTWARE\Policies\Microsoft\Edge' | out-file $Configlog -Append
+
+Add-Content $Configlog "Vul ID: EDGE-00-000004 CAT III, EdgeSmartScreenAllowListDomains reg key 1 & 2 = defined URLs. $line"
+
+###############################################################################################################################################################
+## InPrivate mode must be disabled.
+## Vul ID: EDGE-00-000005 CAT II
+
+checkPathDWORD -registryPath ‘HKLM:SOFTWARE\Policies\Microsoft\Edge’ -Name ‘InPrivateModeAvailability’ -Value "1"
+
+Get-ItemProperty -Path 'HKLM:SOFTWARE\Policies\Microsoft\Edge' | out-file $Configlog -Append
+
+Add-Content $Configlog "Vul ID: EDGE-00-000005 CAT II, InPrivateModeAvailability reg key must = 1. $line"
+
+###############################################################################################################################################################
+##  Background processing must be disabled.
+## Vul ID: EDGE-00-000006 CAT II
+
+checkPathDWORD -registryPath ‘HKLM:SOFTWARE\Policies\Microsoft\Edge\Recommended’ -Name ‘BackgroundModeEnabled’ -Value "0"
+
+Get-ItemProperty -Path 'HKLM:SOFTWARE\Policies\Microsoft\Edge\Recommended' | out-file $Configlog -Append
+
+Add-Content $Configlog "Vul ID: EDGE-00-000006 CAT II, BackgroundModeEnabled reg key must = 0. $line"
+
+###############################################################################################################################################################
+## The ability of sites to show desktop notifications must be disabled.
+## Vul ID: EDGE-00-000007 CAT II
+
+checkPathDWORD -registryPath ‘HKLM:SOFTWARE\Policies\Microsoft\Edge’ -Name ‘DefaultNotificationsSetting’ -Value "2"
+
+Get-ItemProperty -Path 'HKLM:SOFTWARE\Policies\Microsoft\Edge' | out-file $Configlog -Append
+
+Add-Content $Configlog "Vul ID: EDGE-00-000007 CAT II, DefaultNotificationSetting reg key must = 2. $line"
+
+###############################################################################################################################################################
+## The ability of sites to show pop-ups must be disabled.
+## Vul ID: EDGE-00-000008 CAT II
+
+checkPath -registryPath ‘HKLM:SOFTWARE\Policies\Microsoft\Edge’ -Name ‘DefaultPopupsSetting’ -Value "2"
+
+Get-ItemProperty -Path 'HKLM:SOFTWARE\Policies\Microsoft\Edge' | out-file $Configlog -Append
+
+Add-Content $Configlog "Vul ID: EDGE-00-000008 CAT II, DefaultPopupsSetting reg key must = 2. $line"
+
+###############################################################################################################################################################
+## The default search provider must be set to use an encrypted connection.
+## Vul ID: EDGE-00-000009 CAT II
+
+checkPathSTRING -registryPath ‘HKLM:SOFTWARE\Policies\Microsoft\Edge\Recommended’ -Name ‘ManagedSearchEngines’ -Value ''
+
+Get-ItemProperty -Path 'HKLM:SOFTWARE\Policies\Microsoft\Edge\Recommended' | out-file $Configlog -Append
+
+Add-Content $Configlog "Vul ID: EDGE-00-000009 CAT II, "
+
+## Test setting policy and review key to get script correct
+
+###############################################################################################################################################################
+## Data Synchronization must be disabled.
+## Vul ID: EDGE-00-000010 CAT II
+
+checkPathDWORD -registryPath ‘HKLM:SOFTWARE\Policies\Microsoft\Edge\Recommended’ -Name ‘SyncDisabled’ -Value "1"
+
+Get-ItemProperty -Path 'HKLM:SOFTWARE\Policies\Microsoft\Edge\Recommended' | out-file $Configlog -Append
+
+Add-Content $Configlog "Vul ID: EDGE-00-000010 CAT II, SyncDisabled reg key must = 1. $line"
+
+###############################################################################################################################################################
+##  Network prediction must be disabled.
+## Vul ID: EDGE-00-000011 CAT II
+
+checkPathDWORD -registryPath ‘HKLM:SOFTWARE\Policies\Microsoft\Edge\Recommended’ -Name ‘NetworkPredictionOptions’ -Value "2"
+
+Get-ItemProperty -Path 'HKLM:SOFTWARE\Policies\Microsoft\Edge\Recommended' | out-file $Configlog -Append
+
+Add-Content $Configlog "Vul ID: EDGE-00-000011 CAT II, NetworkPredictionOptions reg key must = 2. $line"
+
+###############################################################################################################################################################
+## Search suggestions must be disabled.
+## Vul ID: EDGE-00-000012 CAT II
+
+checkPathDWORD -registryPath ‘HKLM:SOFTWARE\Policies\Microsoft\Edge\Recommended’ -Name ‘SearchSuggestEnabled’ -Value "0"
+
+Get-ItemProperty -Path 'HKLM:SOFTWARE\Policies\Microsoft\Edge\Recommended' | out-file $Configlog -Append
+
+Add-Content $Configlog "Vul ID: EDGE-00-000012 CAT II, SearchSuggestEnabled reg key must = 0. $line"
+
+###############################################################################################################################################################
+##  Importing of autofill form data must be disabled.
+## Vul ID: EDGE-00-000013 CAT II
+
+checkPathDWORD -registryPath ‘HKLM:SOFTWARE\Policies\Microsoft\Edge\Recommended’ -Name ‘ImportAutofillFormData’ -Value "0"
+
+Get-ItemProperty -Path 'HKLM:SOFTWARE\Policies\Microsoft\Edge\Recommended' | out-file $Configlog -Append
+
+Add-Content $Configlog "Vul ID: EDGE-00-000013 CAT II, ImportAutofillFormData reg key must = 0. $line"
+
+###############################################################################################################################################################
+##  Importing of browser settings must be disabled.
+## Vul ID: EDGE-00-000014 CAT II	
+
+checkPathDWORD -registryPath ‘HKLM:SOFTWARE\Policies\Microsoft\Edge\Recommended’ -Name ‘ImportBrowserSettings’ -Value "0"
+
+Get-ItemProperty -Path 'HKLM:SOFTWARE\Policies\Microsoft\Edge\Recommended' | out-file $Configlog -Append
+
+Add-Content $Configlog "Vul ID: EDGE-00-000014 CAT II, ImportBrowserSettings reg key must = 0. $line"
+
+###############################################################################################################################################################
+## Importing of cookies must be disabled.
+## Vul ID: EDGE-00-000015 CAT II
+
+checkPathDWORD -registryPath ‘HKLM:SOFTWARE\Policies\Microsoft\Edge\Recommended’ -Name ‘ImportCookies’ -Value "0"
+
+Get-ItemProperty -Path 'HKLM:SOFTWARE\Policies\Microsoft\Edge\Recommended' | out-file $Configlog -Append
+
+Add-Content $Configlog "Vul ID: EDGE-00-000015 CAT II, ImportCookies reg key must = 0. $line"
+
+###############################################################################################################################################################
+## Importing of extensions must be disabled.
+## Vul ID: EDGE-00-000016 CAT II
+
+checkPathDWORD -registryPath ‘HKLM:SOFTWARE\Policies\Microsoft\Edge\Recommended’ -Name ‘ImportExtensions’ -Value "0"
+
+Get-ItemProperty -Path 'HKLM:SOFTWARE\Policies\Microsoft\Edge\Recommended' | out-file $Configlog -Append
+
+Add-Content $Configlog "Vul ID: EDGE-00-000016 CAT II, ImportExtensions reg key must = 0. $line"
+
+###############################################################################################################################################################
+## Importing of browsing history must be disabled.
+## Vul ID: EDGE-00-000017 CAT II
+
+checkPathDWORD -registryPath ‘HKLM:SOFTWARE\Policies\Microsoft\Edge\Recommended’ -Name ‘ImportHistory’ -Value "0"
+
+Get-ItemProperty -Path 'HKLM:SOFTWARE\Policies\Microsoft\Edge\Recommended' | out-file $Configlog -Append
+
+Add-Content $Configlog "Vul ID: EDGE-00-000017 CAT II, ImportHistory reg key must = 0. $line"
+
+###############################################################################################################################################################
+##  Importing of home page settings must be disabled.
+## Vul ID: EDGE-00-000018 CAT II
+
+checkPathDWORD -registryPath ‘HKLM:SOFTWARE\Policies\Microsoft\Edge\Recommended’ -Name ‘ImportHomepage’ -Value "0"
+
+Get-ItemProperty -Path 'HKLM:SOFTWARE\Policies\Microsoft\Edge\Recommended' | out-file $Configlog -Append
+
+Add-Content $Configlog "Vul ID: EDGE-00-000018 CAT II, ImportHomepage reg key must = 0. $line"
+
+###############################################################################################################################################################
+##  Importing of open tabs must be disabled.
+## Vul ID: EDGE-00-000019 CAT II
+
+checkPathDWORD -registryPath ‘HKLM:SOFTWARE\Policies\Microsoft\Edge\Recommended’ -Name ‘ImportOpenTabs’ -Value "0"
+
+Get-ItemProperty -Path 'HKLM:SOFTWARE\Policies\Microsoft\Edge\Recommended' | out-file $Configlog -Append
+
+Add-Content $Configlog "Vul ID: EDGE-00-000019 CAT II, ImportOpenTabs reg key must = 0. $line"
+
+###############################################################################################################################################################
+## Importing of payment info must be disabled.
+## Vul ID: EDGE-00-000020 CAT II
+
+checkPath -registryPath ‘HKLM:SOFTWARE\Policies\Microsoft\Edge\Recommended’ -Name ‘ImportPaymentInfo’ -Value "0"
+
+Get-ItemProperty -Path 'HKLM:SOFTWARE\Policies\Microsoft\Edge\Recommended' | out-file $Configlog -Append
+
+Add-Content $Configlog "Vul ID: EDGE-00-000020 CAT II, ImportPaymentInfo reg key must = 0. $line"
+
+###############################################################################################################################################################
+##  Importing of saved passwords must be disabled.
+## Vul ID: EDGE-00-000021 CAT II
+
+checkPathDWORD -registryPath ‘HKLM:SOFTWARE\Policies\Microsoft\Edge\Recommended’ -Name ‘ImportSavedPasswords’ -Value "0"
+
+Get-ItemProperty -Path 'HKLM:SOFTWARE\Policies\Microsoft\Edge\Recommended' | out-file $Configlog -Append
+
+Add-Content $Configlog "Vul ID: EDGE-00-000021 CAT II, ImportSavedPasswords reg key must = o. $line"
+
+###############################################################################################################################################################
+##  Importing of search engine settings must be disabled.
+## Vul ID: EDGE-00-000022 CAT II
+
+checkPathDWORD -registryPath ‘HKLM:SOFTWARE\Policies\Microsoft\Edge\Recommended’ -Name ‘ImportSearchEngine’ -Value "0"
+
+Get-ItemProperty -Path 'HKLM:SOFTWARE\Policies\Microsoft\Edge\Recommended' | out-file $Configlog -Append
+
+Add-Content $Configlog "Vul ID: EDGE-00-000022 CAT II, ImportSearchEngine reg key must = 0. $line"
+
+###############################################################################################################################################################
+## Importing of shortcuts must be disabled.
+## Vul ID: EDGE-00-000023 CAT II
+
+checkPathDWORD -registryPath ‘HKLM:SOFTWARE\Policies\Microsoft\Edge\Recommended’ -Name ‘ImportShortcuts’ -Value "0"
+
+Get-ItemProperty -Path 'HKLM:SOFTWARE\Policies\Microsoft\Edge\Recommended' | out-file $Configlog -Append
+
+Add-Content $Configlog "Vul ID: EDGE-00-000023 CAT II, ImportShortcuts reg key must = 0. $line"
+
+###############################################################################################################################################################
+## Autoplay must be disabled.
+## Vul ID: EDGE-00-000024 CAT II
+
+checkPathDWORD -registryPath ‘HKLM:SOFTWARE\Policies\Microsoft\Edge\’ -Name ‘AutoplayAllowed’ -Value "0"
+
+Get-ItemProperty -Path 'HKLM:SOFTWARE\Policies\Microsoft\Edge\' | out-file $Configlog -Append
+
+Add-Content $Configlog "Vul ID: EDGE-00-000024 CAT II, AutoplayAllowed"
+
+###############################################################################################################################################################
+## WebUSB must be disabled.
+## Vul ID: EDGE-00-000025 CAT II
+
+checkPathDWORD -registryPath ‘HKLM:SOFTWARE\Policies\Microsoft\Edge\’ -Name ‘DefaultWebUsbGuardSetting’ -Value "2"
+
+Get-ItemProperty -Path 'HKLM:SOFTWARE\Policies\Microsoft\Edge\' | out-file $Configlog  -Append
+
+Add-Content $Configlog "Vul ID: EDGE-00-000025 CAT II, DefaultWebUsbGuardSetting reg key must = 2. $line"
+
+###############################################################################################################################################################
+##  Google Cast must be disabled.
+## Vul ID: EDGE-00-000026 CAT II
+
+checkPathDWORD -registryPath ‘HKLM:SOFTWARE\Policies\Microsoft\Edge\’ -Name ‘EnableMediaRouter’ -Value "0"
+
+Get-ItemProperty -Path 'HKLM:SOFTWARE\Policies\Microsoft\Edge\' | out-file $Configlog -Append
+
+Add-Content $Configlog "Vul ID: EDGE-00-000026 CAT II, EnableMediaRouter reg keyu must = 0. $line"
+
+###############################################################################################################################################################
+## Web Bluetooth API must be disabled.
+## Vul ID: EDGE-00-000027 CAT II
+
+checkPathDWORD -registryPath ‘HKLM:SOFTWARE\Policies\Microsoft\Edge\’ -Name ‘DefaultWebBluetoothGuardSetting’ -Value "2"
+
+Get-ItemProperty -Path 'HKLM:SOFTWARE\Policies\Microsoft\Edge\' | out-file $Configlog -Append
+
+Add-Content $Configlog "Vul ID: EDGE-00-000027 CAT II, DefaultWebBluetoothGuardSetting reg key must = 2. $line"
+
+###############################################################################################################################################################
+## Autofill for Credit Cards must be disabled.
+## Vul ID: EDGE-00-000028 CAT II
+
+checkPathDWORD -registryPath ‘HKLM:SOFTWARE\Policies\Microsoft\Edge\’ -Name ‘AutofillCreditCardEnabled’ -Value "0"
+
+Get-ItemProperty -Path 'HKLM:SOFTWARE\Policies\Microsoft\Edge\' | out-file $Configlog -Append
+
+Add-Content $Configlog "Vul ID: EDGE-00-000028 CAT II, AutofillCreditCardEnabled reg key must = 0. $line"
+
+###############################################################################################################################################################
+## Autofill for addresses must be disabled.
+## Vul ID: EDGE-00-000029 CAT II
+
+checkPathDWORD -registryPath ‘HKLM:SOFTWARE\Policies\Microsoft\Edge\’ -Name ‘AutofillAddressEnabled’ -Value "0"
+
+Get-ItemProperty -Path 'HKLM:SOFTWARE\Policies\Microsoft\Edge\' | out-file $Configlog -Append
+
+Add-Content $Configlog "Vul ID: EDGE-00-000029 CAT II, AutofillAddressEnabled reg key must = 0. $line"
+
+###############################################################################################################################################################
+## Online revocation checks must be performed.
+## Vul ID: EDGE-00-000030	
+
+checkPathDWORD -registryPath ‘HKLM:SOFTWARE\Policies\Microsoft\Edge\’ -Name ‘RequireOnlineRevocationChecksForLocalAnchors’ -Value "1"
+
+Get-ItemProperty -Path 'HKLM:SOFTWARE\Policies\Microsoft\Edge\' | out-file $Configlog -Append
+
+Add-Content $Configlog "Vul ID: EDGE-00-000029 CAT II, RequireOnlineRevocationChecksForLocalAnchors reg key must = 1. $line"
+
+###############################################################################################################################################################
+##  Personalization of ads, search, and news by sending browsing history to Microsoft must be disabled.
+## Vul ID: EDGE-00-000031 CAT II
+
+checkPathDWORD -registryPath ‘HKLM:SOFTWARE\Policies\Microsoft\Edge\’ -Name ‘PersonalizationReportingEnabled’ -Value "0"
+
+Get-ItemProperty -Path 'HKLM:SOFTWARE\Policies\Microsoft\Edge\' | out-file $Configlog -Append
+
+Add-Content $Configlog "Vul ID: EDGE-00-000031 CAT II, PersonalizationReportingEnabled reg key must = 0. $line"
+
+###############################################################################################################################################################
+## Site tracking of a user’s location must be disabled.
+## Vul ID: EDGE-00-000032 CAT II
+
+checkPathDWWORD -registryPath ‘HKLM:SOFTWARE\Policies\Microsoft\Edge\’ -Name ‘DefaultGeolocationSetting’ -Value "2"
+
+Get-ItemProperty -Path 'HKLM:SOFTWARE\Policies\Microsoft\Edge\' | out-file $Configlog -Append
+
+Add-Content $Configlog "Vul ID: EDGE-00-000032 CAT II, DefaultGeolocationSetting reg key must = 2. $line"
+
+###############################################################################################################################################################
+##  Browser history must be saved.
+## Vul ID: EDGE-00-000033 CAT II
+
+checkPathDWORD -registryPath ‘HKLM:SOFTWARE\Policies\Microsoft\Edge\’ -Name ‘AllowDeletingBrowserHistory’ -Value "0"
+
+Get-ItemProperty -Path 'HKLM:SOFTWARE\Policies\Microsoft\Edge\' | out-file $Configlog-Append
+
+Add-Content $Configlog "Vul ID: EDGE-00-000033 CAT II, AllowDeletingBrowserHistory reg key must = 0. $line" -Append
+
+###############################################################################################################################################################
+## Edge development tools must be disabled.
+## Vul ID: EDGE-00-000034 CAT III
+
+checkPathDWORD -registryPath ‘HKLM:SOFTWARE\Policies\Microsoft\Edge\’ -Name ‘DeveloperToolsAvailability’ -Value "2"
+
+Get-ItemProperty -Path 'HKLM:SOFTWARE\Policies\Microsoft\Edge\' | out-file $Configlog-Append
+
+Add-Content $Configlog "Vul ID: EDGE-00-000034 CAT III, DeveloperToolsAvailability reg key must = 2. $line" -Append
+
+###############################################################################################################################################################
+## Flash plugin must be disabled by default.
+## Vul ID: EDGE-00-000035 CAT II
+
+checkPathDWORD -registryPath ‘HKLM:SOFTWARE\Policies\Microsoft\Edge\’ -Name ‘DefaultPluginsSetting’ -Value "2"
+
+Get-ItemProperty -Path 'HKLM:SOFTWARE\Policies\Microsoft\Edge\' | out-file $Configlog-Append
+
+Add-Content $Configlog "Vul ID: EDGE-00-000035 CAT II, DefaultPluginsSetting reg key must = 2. $line" -Append
+
+###############################################################################################################################################################
+## Download restrictions must be configured.
+## Vul ID: EDGE-00-000036 CAT III
+
+checkPathDWORD -registryPath ‘HKLM:SOFTWARE\Policies\Microsoft\Edge\’ -Name ‘DownloadRestrictions’ -Value "2"
+
+Get-ItemProperty -Path 'HKLM:SOFTWARE\Policies\Microsoft\Edge\' | out-file $Configlog-Append
+
+Add-Content $Configlog "Vul ID: EDGE-00-000036 CAT III, DownloadRestrictions reg key must = 2. $line" -Append
+
+###############################################################################################################################################################
+## URLs must be whitelisted for plugin use.
+## Vul ID: EDGE-00-000039 CAT II
+
+checkPathSTRING -registryPath ‘HKLM:SOFTWARE\Policies\Microsoft\EdgePopupsAllowedForUrls\’ -Name ‘1’ -Value 'mydomain.com'
+
+Get-ItemProperty -Path 'HKLM:SOFTWARE\Policies\Microsoft\Edge\PopupsAllowedForUrls\' | out-file $Configlog-Append
+
+Add-Content $Configlog "Vul ID: EDGE-00-000039 CAT II, reg key 1 & 2 should = mydomain.com & myagency.mil $line" -Append
+##
+checkPathSTRING -registryPath ‘HKLM:SOFTWARE\Policies\Microsoft\EdgePopupsAllowedForUrls\’ -Name ‘2’ -Value 'myagency.mil'
+
+Get-ItemProperty -Path 'HKLM:SOFTWARE\Policies\Microsoft\Edge\PopupsAllowedForUrls\' | out-file $Configlog-Append
+
+Add-Content $Configlog "Vul ID: EDGE-00-000039 CAT II, reg key 1 & 2 should = mydomain.com & myagency.mil $line" -Append
+
+###############################################################################################################################################################
+## Extensions installation must be blocklisted by default.
+## Vul ID: EDGE-00-000041 CAT II
+
+checkPathSTRING -registryPath ‘HKLM:SOFTWARE\Policies\Microsoft\Edge\’ -Name ‘ExtensionInstallBlocklist’ -Value '*'
+
+Get-ItemProperty -Path 'HKLM:SOFTWARE\Policies\Microsoft\Edge\' | out-file $Configlog-Append
+
+Add-Content $Configlog "Vul ID: EDGE-00-000041 CAT II, ExtensionInstallBlocklist reg key must = *. $line" -Append
+
+###############################################################################################################################################################
+## Extensions that are approved for use must be allowlisted.
+## Vul ID: EDGE-00-000042 CAT II
+
+checkPathSTRING -registryPath ‘HKLM:SOFTWARE\Policies\Microsoft\Edge\’ -Name ‘ExtensionInstallAllowlist’ -Value 'extension_id1'
+
+Get-ItemProperty -Path 'HKLM:SOFTWARE\Policies\Microsoft\Edge\' | out-file $Configlog-Append
+
+Add-Content $Configlog "Vul ID: EDGE-00-000042 CAT II, ExtensionInstallAllowlist reg key must = extension_id1. $line " -Append
+##
+checkPathSTRING -registryPath ‘HKLM:SOFTWARE\Policies\Microsoft\Edge\’ -Name ‘ExtensionInstallAllowlist’ -Value 'extension_id2'
+
+Get-ItemProperty -Path 'HKLM:SOFTWARE\Policies\Microsoft\Edge\' | out-file $Configlog-Append
+
+Add-Content $Configlog "Vul ID: EDGE-00-000042 CAT II, ExtensionInstallAllowlist reg key must = extension_id2. $line " -Append
+
+###############################################################################################################################################################
+## The Password Manager must be disabled.
+## Vul ID: EDGE-00-000043 CAT II
+
+checkPathDWORD -registryPath ‘HKLM:SOFTWARE\Policies\Microsoft\Edge\’ -Name ‘PasswordManagerEnabled’ -Value "0"
+
+Get-ItemProperty -Path 'HKLM:SOFTWARE\Policies\Microsoft\Edge\' | out-file $Configlog-Append
+
+Add-Content $Configlog "Vul ID: EDGE-00-000043 CAT II, PasswordManagerEnabled reg key must = 0. $line" -Append
+
+###############################################################################################################################################################
+## The HTTPS warning page must not be able to be bypassed.
+## Vul ID: EDGE-00-000044 CAT II
+
+checkPathDWORD -registryPath ‘HKLM:SOFTWARE\Policies\Microsoft\Edge\’ -Name ‘SSLErrorOverrideAllowed’ -Value "0"
+
+Get-ItemProperty -Path 'HKLM:SOFTWARE\Policies\Microsoft\Edge\' | out-file $Configlog-Append
+
+Add-Content $Configlog "Vul ID: EDGE-00-000044 CAT II, SSLErrorOverrideAllowed reg key must = 0. $line" -Append
+
+###############################################################################################################################################################
+## The version of Microsoft Edge running on the system must be a supported version.
+## Vul ID: EDGE-00-000045 CAT I
+
+(Get-Item (Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\edge.exe').'(Default)').VersionInfo | out-file $Configurationlog -Append
+
+Add-Content $Configurationlog "Vul ID: EDGE-00-000045 CAT I, version returned must be the most current supported. $line" 
+
+###############################################################################################################################################################
+##  Edge must be configured to allow only TLS.
+## Vul ID: EDGE-00-000046 CAT I
+
+checkPathSTRING -registryPath ‘HKLM:SOFTWARE\Policies\Microsoft\Edge\’ -Name ‘SSLVersionMin’ -Value 'tls1.2'
+
+Get-ItemProperty -Path 'HKLM:SOFTWARE\Policies\Microsoft\Edge\' | out-file $Configlog-Append
+
+Add-Content $Configlog "Vul ID: EDGE-00-000046 CAT I, SSLVersionMin reg key must = tls1.2. $line" -Append
+
+###############################################################################################################################################################
+## 
+## 
+
+## checkPath -registryPath ‘’ -Name ‘’ -Value ""
+
+## Get-ItemProperty -Path '' | out-file $Configlog-Append
+
+## Add-Content $Configlog "" -Append
+
+###############################################################################################################################################################
+## 
+## 
+
+## checkPath -registryPath ‘’ -Name ‘’ -Value ""
+
+## Get-ItemProperty -Path '' | out-file $Configlog-Append
+
+## Add-Content $Configlog "" -Append
+
+###############################################################################################################################################################
+## 
+## 
