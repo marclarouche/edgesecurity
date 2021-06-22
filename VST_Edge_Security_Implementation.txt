@@ -5,15 +5,15 @@
 ##   Make sure to run a backup of the registry first prior to running this security script.
 ##   Authored by ValliantConsulting. Feb 6th 2021 : ## Edge security fixes
 ################################################################################################################
-# Win 10 Valliant Security Tool
+# Win 10 Security Tool
 #
 # Script + Menu(GUI) By
 #  Author: ZMAN
 # Website: https://GitHub.com/Valliant/VSTHomeSecurity
 # 
-#  Valliant Home Security Tool 
+# Home Security Tool 
 #  Author: Marc/Rizwan
-# Website: http://www.ValliantConsulting.com/
+# Website: http://www.marclarouche.com/
 #
 # $Script_Version = '1.0.0'
 # $Script_Date = 'February-28-2021'
@@ -38,7 +38,7 @@
  # OpenSource + an added Condition                             
                                                                         
  # Copyright (c) 2021 ZMAN                                     
- #         - Valliant Security Tool Script                                  
+ #         - Win 10 Edge Security Tool Script                                  
                                                                         
  # Permission is hereby granted, free of charge, to any person obtaining  
  # a copy of this software and associated documentation files (the        
