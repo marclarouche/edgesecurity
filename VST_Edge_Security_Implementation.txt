@@ -3,16 +3,16 @@
 ##   Windows 10 Security Edge Implementation Guide #
 ##   Use this script to implement the Edge security recommendations from NIST  #
 ##   Make sure to run a backup of the registry first prior to running this security script.
-##   Authored by ValliantConsulting. Feb 6th 2021 : ## Edge security fixes
+##   Authored by Marc Larouche. Feb 6th 2021 : ## Edge security fixes
 ################################################################################################################
 # Win 10 Security Tool
 #
 # Script + Menu(GUI) By
 #  Author: ZMAN
-# Website: https://GitHub.com/Valliant/VSTHomeSecurity
+# Website: https://GitHub.com/Valliant/HomeSecurity
 # 
 # Home Security Tool 
-#  Author: Marc/Rizwan
+#  Author: Marc
 # Website: http://www.marclarouche.com/
 #
 # $Script_Version = '1.0.0'
@@ -31,7 +31,7 @@
 <#------------------------------------------------------------------------------#>
 <#------------------------------------------------------------------------------#>
 # $Copyright = ' Copyright (c) 2021 Zero Rights Reserved                                
-#          - Security Configuration by Marc/Rizwan     
+#          - Security Configuration by Marc   
 #                                                                        
 #------------------------------------------------------------------------
                                                                         
